@@ -22,3 +22,9 @@ yarn lint
 
 ### Customize configuration
 See [Configuration Reference](https://cli.vuejs.org/config/).
+
+Tech stack : 
+HTML 
+CSS
+VUE.JS
+FIREBASE
