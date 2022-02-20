@@ -1,9 +1,12 @@
 <template>
-  <div>
+  <div v-if="invoicesLoaded">
     <div class="app flex flex-column">
       <navigation></navigation>
       <div class="app-content flex flex-column">
-        <invoice-model v-if="invoiceModel"></invoice-model>
+        <model v-if="modelToggle"></model>
+        <transition name="invoice">
+          <invoice-model v-if="invoiceModel"></invoice-model>
+        </transition>
         <router-view></router-view>
       </div>
     </div>
@@ -13,16 +16,24 @@
 <script>
 import Navigation from './components/Navigation.vue';
 import InvoiceModel from './components/InvoiceModel.vue';
-import {mapState} from 'vuex';
+import { mapState, mapActions } from 'vuex';
+import Model from './components/Model.vue';
 
 export default {
   name: 'App',
   components: {
     Navigation,
-    InvoiceModel
+    InvoiceModel,
+    Model
   },
   computed: {
-    ...mapState(['invoiceModel']),
+    ...mapState(['invoiceModel', 'modelToggle', 'invoicesLoaded']),
+  },
+  created() {
+    this.GET_INVOICE();
+  },
+  methods: {
+    ...mapActions(['GET_INVOICE']),
   }
 }
 </script>

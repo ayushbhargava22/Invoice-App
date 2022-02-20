@@ -1,6 +1,6 @@
 <template>
   <div class="invoice-wrap flex flex-column" ref="invoiceWrap">
-    <form class="invoice-content">
+    <form @submit.prevent="submitForm" class="invoice-content">
       <h2>Create Invoice</h2>
 
       <!-- Bill from -->
@@ -65,12 +65,12 @@
           </div>
           <div class="input flex flex-column">
             <label for="paymentDueDate">Due Date</label>
-            <input type="number" id="paymentDueDate" v-model="paymentDueDate" />
+            <input type="text" id="paymentDueDate" v-model="paymentDueDate" />
           </div>
         </div>
         <div class="input flex flex-column">
             <label for="paymentTerms">Payment Terms</label>
-            <select id="paymentTerms" v-model="paymentTerms">
+            <select required id="paymentTerms" v-model="paymentTerms">
               <option value="30">Net 30 Days</option>
               <option value="60">Net 60 Days</option>
             </select>
@@ -101,10 +101,10 @@
               <td class="total flex">
                 ${{item.total = item.qty * item.price}}
               </td>
-              <p class="delete">X</p>
+              <p @click="deleteInvoiceItem(item.id)" class="delete">X</p>
             </tr>
           </table>
-          <div class="flex button">
+          <div @click="addInvoiceItem" class="flex button">
             <p>+ Add New Item</p>
           </div>
         </div>
@@ -112,11 +112,11 @@
       <!-- buttons -->
       <div class="save flex">
         <div class="left">
-          <button class="red" @click="closeInvoice">Cancel</button>
+          <button type="button" class="red" @click="closeInvoice">Cancel</button>
         </div>
         <div class="right flex">
-          <button class="dark-purple">Save Draft</button>
-          <button class="purple">Create Invoice</button>
+          <button type="submit" @click="saveDraft" class="dark-purple">Save Draft</button>
+          <button type="submit" @click="publishInvoice" class="purple">Create Invoice</button>
         </div>
       </div>
     </form>
@@ -125,10 +125,14 @@
 
 <script>
 import {mapMutations} from 'vuex';
+import { uid } from 'uid';
+import db from '../firebase/firebaseInit';
 
 export default {
   data() {
     return {
+      object: {year: 'numeric', month: 'short', day: 'numeric'},
+      docId: null,
       billerStreetAddress: null,
       billerCity: null,
       billerPostalCode: null,
@@ -139,25 +143,118 @@ export default {
       clientCity: null,
       clientPostalCode: null,
       clientCountry: null,
+      invoiceDateUnix: null,
       invoiceDate: null,
       paymentDueDate: null,
+      paymentDueDateUnix: null,
       paymentTerms: null,
       productDescription: null,
       invoiceItemList: [],
+      invoicePending: null,
+      invoiceDraft: null,
+      invoiceTotal: 0,
     }
   },
+  created() {
+    this.invoiceDateUnix = Date.now();
+    this.invoiceDate = new Date(this.invoiceDateUnix).toLocaleDateString('en-us', this.object);
+  },
   methods: {
-    ...mapMutations(['TOOGLE_INVOICE']),
+    ...mapMutations(['TOOGLE_INVOICE', "TOOGLE_MODEL"]),
+
+    checkClick(e) {
+      if(e.target === this.$refs.invoiceWrap) {
+        this.TOOGLE_MODEL();
+      }
+    },
+
      closeInvoice() {
       this.TOOGLE_INVOICE();
     },
+
+    addInvoiceItem() {
+      this.invoiceItemList.push({ 
+        id: uid(),
+        itemName: " ",
+        price: 0,
+        qty: " ",
+        total: 0,
+      })
+    },
+
+    deleteInvoiceItem(id) {
+      this.invoiceItemList = this.invoiceItemList.filter((item) => item.id !== id);
+    },
+
+    publishInvoice() {
+      this.invoicePending = true
+    },
+    saveDraft() {
+      this.invoiceDraft = true;
+    },
+
+    calcInvoiceTotal() {
+      this.invoiceTotal = 0;
+      this.invoiceItemList.forEach((item) => {
+        this.invoiceTotal += item.total;
+      })
+    },
+
+    async uploadInvoice() {
+      if(this.invoiceItemList.length <= 0) {
+        alert("Please Enter some details!");
+        return;
+      }
+
+      this.calcInvoiceTotal();
+
+      const dataBase = db.collection('invoice').doc();
+
+      await dataBase.set({
+        invoiceId: uid(6),
+        billerStreetAddress: this.billerStreetAddress,
+        billerCity: this.billerCity,
+        billerPostalCode: this.billerPostalCode,
+        billerCountry: this.billerCountry,
+        clientName: this.clientName,
+        clientEmail: this.clientEmail,
+        clientStreetAddress: this.clientStreetAddress,
+        clientCity: this.clientCity,
+        clientPostalCode: this.clientPostalCode,
+        clientCountry: this.clientCountry,
+        invoiceDateUnix: this.invoiceDateUnix,
+        invoiceDate: this.invoiceDate,
+        paymentDueDate: this.paymentDueDate,
+        paymentDueDateUnix: this.paymentDueDateUnix,
+        paymentTerms: this.paymentTerms,
+        productDescription: this.productDescription,
+        invoiceItemList: this.invoiceItemList,
+        invoicePending: this.invoicePending,
+        invoiceDraft: this.invoiceDraft,
+        invoiceTotal: this.invoiceTotal,
+        invoicePaid: null,
+      })
+
+      this.TOOGLE_INVOICE();
+    },
+
+    submitForm() {
+      this.uploadInvoice();
+    }
+  },
+  watch: {
+    paymentTerms() {
+      const futureDate = new Date();
+      this.paymentDueDateUnix = futureDate.setDate(futureDate.getDate() + parseInt(this.paymentTerms));
+      this.paymentDueDate = new Date(this.paymentDueDateUnix).toLocaleDateString('en-us', this.object);
+    }
   }
 }
 </script>
 
 <style scoped>
   .invoice-wrap {
-    color: white;
+    color: white !important;
     position: fixed;
     top: 0px;
     bottom: 0px;
@@ -189,6 +286,7 @@ export default {
     font-size: 0.85rem;
      margin-top: 20px;
   }
+  input {color: white;}
   input,
   #paymentTerms {
     height: 45px;
@@ -223,5 +321,8 @@ export default {
     margin-top: 20px;
     margin-bottom: 20px;
     justify-content: space-between;
+  }
+  .payment .input {
+    width: 47%
   }
 </style>
