@@ -3,7 +3,7 @@
     <div class="header flex">
       <div class="left-header flex flex-column">
         <h1>Invoices</h1>
-        <p>There are 7 total invoices.</p>
+        <p>There are {{invoiceData.length}} total invoices.</p>
       </div>
       <div class="right-header flex">
         <div @click="toggleFilterMenu" class="filter-invoice">
@@ -21,8 +21,11 @@
         </div>
       </div>
     </div>
-    <div>
-      <invoice v-for="(invoice, index) in invoiceData" :key="index" :invoices="invoiceData"></invoice>
+    <div v-if="invoiceData.length > 0">
+      <invoice v-for="(invoice, index) in invoiceData" :key="index" :invoice="invoice"></invoice>
+    </div>
+    <div v-else>
+      <!-- No Invoice condition -->
     </div>
   </div>
 </template>
